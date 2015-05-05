@@ -1,0 +1,40 @@
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_margin="15dp"
+    android:orientation="vertical" >
+
+    <TextView
+        android:id="@+id/txtStep"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/steps" />
+
+    <Button
+        android:id="@+id/btnStart"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/start" />
+    
+    <TextView
+        android:id="@+id/txtStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Así te late el corasóoon"
+        android:id="@+id/textView" />
+
+    <TextView
+        android:id="@+id/txtHeartRate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="" />
+
+</LinearLayout>
+
+<!-- From: file:/Users/Jorge/Projects/HackMIT2015/Android/DiabeatIT/app/src/main/res/layout/activity_main.xml -->

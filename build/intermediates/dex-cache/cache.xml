@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<items version="2" >
+
+    <item
+        jar="/Users/Jorge/Projects/HackMIT2015/Android/DiabeatIT/app/libs/microsoft-band-1.3.10428.1.jar"
+        jumboMode="false"
+        revision="21.1.2"
+        sha1="f3da45109884b30fbfd70e3bd2835d99a730acd8">
+        <dex dex="/Users/Jorge/Projects/HackMIT2015/Android/DiabeatIT/app/build/intermediates/pre-dexed/debug/microsoft-band-1.3.10428.1-62358343faeab2931a27f00b19799b1b40959719.jar" />
+    </item>
+
+</items>
