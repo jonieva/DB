@@ -32,6 +32,9 @@ import com.microsoft.band.sensors.BandHeartRateEventListener;
 import com.microsoft.band.sensors.HeartRateConsentListener;
 import com.microsoft.band.sensors.SampleRate;
 
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.View;
 import android.app.Activity;
@@ -40,6 +43,10 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 public class BandStreamingAppActivity extends Activity {
 
 	private BandClient client = null;
@@ -47,7 +54,15 @@ public class BandStreamingAppActivity extends Activity {
 	private TextView txtStatus;
 	private TextView txtHeartRate;
 	private Activity mainActivity;
-	
+
+	//private DiabeatITDbHelper dbHelper;
+	SQLiteDatabase db;
+
+	private Button btnSaveData;
+	private Button btnReadData;
+	private TextView txtDataStatus;
+	private int currentHeartRate = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,7 +70,9 @@ public class BandStreamingAppActivity extends Activity {
 
         txtStatus = (TextView) findViewById(R.id.txtStatus);
 		txtHeartRate = (TextView) findViewById(R.id.txtHeartRate);
+		txtDataStatus = (TextView) findViewById(R.id.txtDataStatus);
         btnStart = (Button) findViewById(R.id.btnStart);
+
         btnStart.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
@@ -63,9 +80,37 @@ public class BandStreamingAppActivity extends Activity {
 				new appTask().execute();
 			}
 		});
+
+		btnSaveData = (Button) findViewById(R.id.btnSaveData);
+		btnSaveData.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				try {
+					saveCurrentHeartRate();
+				}
+				catch (Exception ex) {
+					showException(ex.getMessage());
+				}
+			}
+		});
+
+		btnReadData = (Button) findViewById(R.id.btnReadData);
+		btnReadData.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				try {
+					readLastRate();
+				} catch (Exception ex) {
+					showException(ex.getMessage());
+				}
+			}
+		});
+
 		mainActivity = this;
+
+		createDb();
     }
-	
+
 	@Override
 	protected void onResume() {
 		super.onResume();
@@ -87,47 +132,41 @@ public class BandStreamingAppActivity extends Activity {
 			}
 		}
 	}
-	
-	private class appTask extends AsyncTask<Void, Void, Void> {
-		@Override
-		protected Void doInBackground(Void... params) {
-			try {
-				if (getConnectedBandClient()) {
-					appendToUI("Band is connected.\n");
-					client.getSensorManager().registerAccelerometerEventListener(mAccelerometerEventListener, SampleRate.MS128);
-
-					if(client.getSensorManager().getCurrentHeartRateConsent() !=
-							UserConsent.GRANTED) {
-						// user has not consented, request it
-						// the calling class is both an Activity and implements
-						// HeartRateConsentListener
-						client.getSensorManager().requestHeartRateConsent(mainActivity, heartRateConsentListener);
-					}
-					client.getSensorManager().registerHeartRateEventListener(mHeartRateEventListener);
-				} else {
-					appendToUI("Band isn't connected. Please make sure bluetooth is on and the band is in range.\n");
-				}
-			} catch (BandException e) {
-				String exceptionMessage="";
-				switch (e.getErrorType()) {
-				case UNSUPPORTED_SDK_VERSION_ERROR:
-					exceptionMessage = "Microsoft Health BandService doesn't support your SDK Version. Please update to latest SDK.";
-					break;
-				case SERVICE_ERROR:
-					exceptionMessage = "Microsoft Health BandService is not available. Please make sure Microsoft Health is installed and that you have the correct permissions.";
-					break;
-				default:
-					exceptionMessage = "Unknown error occured: " + e.getMessage();
-					break;
-				}
-				showException(exceptionMessage);
 
 
-			} catch (Exception e) {
-				appendToUI(e.getMessage());
-			}
-			return null;
-		}
+	private void createDb() {
+		DiabeatITDbHelper dbHelper = new DiabeatITDbHelper(this);
+		db = dbHelper.getWritableDatabase();
+	}
+
+	private void saveCurrentHeartRate() {
+		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+		String dateStr = dateFormat.format(new Date());
+
+
+		ContentValues values = new ContentValues();
+		values.put("Value", currentHeartRate);
+		values.put("Date", dateStr);
+		db.insert("HeartRateEntry", "null", values);
+
+		appendToUI("Written " + currentHeartRate + " at " + dateStr, txtDataStatus);
+	}
+
+	private void readLastRate() {
+		String[] projection = {"Id, Value, Date"};
+		Cursor c = db.query(
+				"HeartRateEntry",  // The table to query
+				projection,                               // The columns to return
+				null,                                // The columns for the WHERE clause
+				null,                            // The values for the WHERE clause
+				null,                                     // don't group the rows
+				null,                                     // don't filter by row groups
+				"Id DESC"                                 // The sort order
+		);
+		c.moveToFirst();
+		int rate = c.getInt(c.getColumnIndex("Value"));
+		String date = c.getString(c.getColumnIndex("Date"));
+		appendToUI("Read " + rate + " at " + date, txtDataStatus);
 	}
 
 	private void showException(String message) {
@@ -172,6 +211,7 @@ public class BandStreamingAppActivity extends Activity {
 				if (bandHeartRateEvent != null) {
 					appendToUI(String.format("Heart rate: %d",
 							bandHeartRateEvent.getHeartRate()), txtHeartRate);
+					currentHeartRate = bandHeartRateEvent.getHeartRate();
 				}
 			}
 			catch (Exception ex) {
@@ -194,6 +234,48 @@ public class BandStreamingAppActivity extends Activity {
 		
 		appendToUI("Band is connecting...\n");
 		return ConnectionState.CONNECTED == client.connect().await();
+	}
+
+	private class appTask extends AsyncTask<Void, Void, Void> {
+		@Override
+		protected Void doInBackground(Void... params) {
+			try {
+				if (getConnectedBandClient()) {
+					appendToUI("Band is connected.\n");
+					client.getSensorManager().registerAccelerometerEventListener(mAccelerometerEventListener, SampleRate.MS128);
+
+					if(client.getSensorManager().getCurrentHeartRateConsent() !=
+							UserConsent.GRANTED) {
+						// user has not consented, request it
+						// the calling class is both an Activity and implements
+						// HeartRateConsentListener
+						client.getSensorManager().requestHeartRateConsent(mainActivity, heartRateConsentListener);
+					}
+					client.getSensorManager().registerHeartRateEventListener(mHeartRateEventListener);
+				} else {
+					appendToUI("Band isn't connected. Please make sure bluetooth is on and the band is in range.\n");
+				}
+			} catch (BandException e) {
+				String exceptionMessage="";
+				switch (e.getErrorType()) {
+					case UNSUPPORTED_SDK_VERSION_ERROR:
+						exceptionMessage = "Microsoft Health BandService doesn't support your SDK Version. Please update to latest SDK.";
+						break;
+					case SERVICE_ERROR:
+						exceptionMessage = "Microsoft Health BandService is not available. Please make sure Microsoft Health is installed and that you have the correct permissions.";
+						break;
+					default:
+						exceptionMessage = "Unknown error occured: " + e.getMessage();
+						break;
+				}
+				showException(exceptionMessage);
+
+
+			} catch (Exception e) {
+				appendToUI(e.getMessage());
+			}
+			return null;
+		}
 	}
 }
 
