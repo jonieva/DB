@@ -50,6 +50,4 @@ public class DiabeatITDbHelper extends SQLiteOpenHelper {
         db.execSQL(SQL_DELETE_DB);
         onCreate(db);
     }
-
-
 }
