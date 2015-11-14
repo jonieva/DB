@@ -25,15 +25,13 @@ import com.microsoft.band.BandIOException;
 import com.microsoft.band.ConnectionState;
 import com.microsoft.band.UserConsent;
 import diabeatIT.streaming.R;
-import com.microsoft.band.sensors.BandAccelerometerEvent;
-import com.microsoft.band.sensors.BandAccelerometerEventListener;
-import com.microsoft.band.sensors.BandGyroscopeEvent;
+
 import com.microsoft.band.sensors.BandHeartRateEvent;
 import com.microsoft.band.sensors.BandHeartRateEventListener;
 import com.microsoft.band.sensors.HeartRateConsentListener;
-import com.microsoft.band.sensors.SampleRate;
 
 import android.content.ContentValues;
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
@@ -57,15 +55,18 @@ public class BandStreamingAppActivity extends Activity {
 	private TextView txtHeartRate;
 	private Activity mainActivity;
 
-	//private DiabeatITDbHelper dbHelper;
-	SQLiteDatabase db;
-
 	private Button btnSaveData;
 	private Button btnReadData;
 	private TextView txtDataStatus;
 	private int currentHeartRate = 0;
 
-    @Override
+	private Button btnService;
+	private boolean isServiceStarted = false;
+
+	SQLiteDatabase db;
+	private Intent serviceIntent;
+
+	@Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -74,12 +75,13 @@ public class BandStreamingAppActivity extends Activity {
 		this.txtHeartRate = (TextView) findViewById(R.id.txtHeartRate);
 		this.txtDataStatus = (TextView) findViewById(R.id.txtDataStatus);
         this.btnStart = (Button) findViewById(R.id.btnStart);
+		this.btnService = (Button) findViewById(R.id.btnService);
 
-        this.btnStart.setOnClickListener(new OnClickListener() {
+		this.btnStart.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				txtStatus.setText("");
-				new appTask().execute();
+				new askForConsentAppTask().execute();
 			}
 		});
 
@@ -108,9 +110,34 @@ public class BandStreamingAppActivity extends Activity {
 			}
 		});
 
-		this.mainActivity = this;
+		this.btnService = (Button) findViewById(R.id.btnService);
+		this.btnService.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				try{
+					if (serviceIntent == null) {
+						serviceIntent = new Intent(getApplicationContext(), RecordBandDataIntentService.class);
+					}
+					if (!isServiceStarted) {
+						startService(serviceIntent);
+//						myService.startService(serviceIntent);
+						isServiceStarted = true;
+					}
+					else {
+						stopService(serviceIntent);
+//						myService.stopService(serviceIntent);
+						isServiceStarted = false;
+					}
+					appendToUI("Service started: " + isServiceStarted, (TextView) findViewById(R.id.txtServiceState));
+				}
+				catch (Exception ex){
+					Log.e("MMM", ex.getStackTrace().toString());
+				}
+			}
+		});
 
-		createDb();
+
+		this.mainActivity = this;
     }
 
 	@Override
@@ -139,7 +166,7 @@ public class BandStreamingAppActivity extends Activity {
 	private void createDb() {
 		DiabeatITDbHelper dbHelper = new DiabeatITDbHelper(this);
 		this.db = dbHelper.getWritableDatabase();
-		Log.d("MM", "Db created");
+		Log.d("MMM", "Db created");
 	}
 
 	private void saveCurrentHeartRate() {
@@ -150,7 +177,7 @@ public class BandStreamingAppActivity extends Activity {
 		values.put("Value", currentHeartRate);
 		values.put("Date", dateStr);
 		db.insert("HeartRateEntry", "null", values);
-		Log.d("MM", "Written " + currentHeartRate + " at " + dateStr);
+		Log.d("MMM", "Written " + currentHeartRate + " at " + dateStr);
 		//appendToUI("Written " + currentHeartRate + " at " + dateStr, txtDataStatus);
 	}
 
@@ -171,7 +198,7 @@ public class BandStreamingAppActivity extends Activity {
 			int rate = c.getInt(c.getColumnIndex("Value"));
 			String date = c.getString(c.getColumnIndex("Date"));
 			//appendToUI("Read " + rate + " at " + date, txtDataStatus);
-			Log.d("MM", "Read " + rate + " at " + date);
+			Log.d("MMM", "Read " + rate + " at " + date);
 		} while(c.moveToNext());
 	}
 
@@ -203,6 +230,9 @@ public class BandStreamingAppActivity extends Activity {
 //        }
 //    };
 
+	/**
+	 * Listen to the CONSENT for reading heart rate
+	 */
 	private HeartRateConsentListener heartRateConsentListener = new HeartRateConsentListener() {
 		@Override
 		public void userAccepted(boolean b) {
@@ -210,6 +240,9 @@ public class BandStreamingAppActivity extends Activity {
 		}
 	};
 
+	/**
+	 * Listener for heart rate
+	 */
 	private BandHeartRateEventListener mHeartRateEventListener = new BandHeartRateEventListener() {
 		@Override
 		public void onBandHeartRateChanged(BandHeartRateEvent bandHeartRateEvent) {
@@ -243,7 +276,10 @@ public class BandStreamingAppActivity extends Activity {
 		return ConnectionState.CONNECTED == client.connect().await();
 	}
 
-	private class appTask extends AsyncTask<Void, Void, Void> {
+	/**
+	 * Task that asks for the consent to read heart rate
+	 */
+	private class askForConsentAppTask extends AsyncTask<Void, Void, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {
 			try {

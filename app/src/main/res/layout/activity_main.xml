@@ -49,6 +49,18 @@
         android:text="Read past data"
         android:id="@+id/btnReadData" />
 
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Start/Stop service"
+        android:id="@+id/btnService" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="The service is:"
+        android:id="@+id/txtServiceState" />
+
     <TextView
         android:id="@+id/txtDataStatus"
         android:layout_width="311dp"
