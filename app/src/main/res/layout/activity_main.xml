@@ -3,7 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:layout_margin="15dp"
-    android:orientation="vertical" >
+    android:orientation="vertical"
+    android:weightSum="1">
 
     <TextView
         android:id="@+id/txtStep"
@@ -26,7 +27,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Así te late el corasóoon"
+        android:text="Sensor information:"
         android:id="@+id/textView" />
 
     <TextView
@@ -34,6 +35,13 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="" />
+
+    <TextView
+        android:id="@+id/txtDataStatus"
+        android:layout_width="311dp"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:layout_weight="0.73" />
 
     <Button
         android:layout_width="wrap_content"
@@ -60,12 +68,6 @@
         android:layout_height="wrap_content"
         android:text="The service is:"
         android:id="@+id/txtServiceState" />
-
-    <TextView
-        android:id="@+id/txtDataStatus"
-        android:layout_width="311dp"
-        android:layout_height="wrap_content"
-        android:text="" />
 
 </LinearLayout>
 

@@ -18,17 +18,9 @@
 package diabeatIT;
 
 import com.microsoft.band.BandClient;
-import com.microsoft.band.BandClientManager;
-import com.microsoft.band.BandException;
-import com.microsoft.band.BandInfo;
 import com.microsoft.band.BandIOException;
-import com.microsoft.band.ConnectionState;
-import com.microsoft.band.UserConsent;
-import diabeatIT.streaming.R;
 
-import com.microsoft.band.sensors.BandHeartRateEvent;
-import com.microsoft.band.sensors.BandHeartRateEventListener;
-import com.microsoft.band.sensors.HeartRateConsentListener;
+import diabeatIT.streaming.R;
 
 import android.content.ContentValues;
 import android.content.Intent;
@@ -38,7 +30,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.app.Activity;
-import android.os.AsyncTask;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
@@ -47,13 +38,13 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public class BandStreamingAppActivity extends Activity {
+public class BandStreamingAppActivity extends Activity implements IOnTaskCompleted {
 
 	private BandClient client = null;
 	private Button btnStart;
 	private TextView txtStatus;
 	private TextView txtHeartRate;
-	private Activity mainActivity;
+	private BandStreamingAppActivity mainActivity = this;
 
 	private Button btnSaveData;
 	private Button btnReadData;
@@ -62,13 +53,14 @@ public class BandStreamingAppActivity extends Activity {
 
 	private Button btnService;
 	private boolean isServiceStarted = false;
+	private int step = 0;
 
 	SQLiteDatabase db;
-	private Intent serviceIntent;
+	BandManager bandManager;
 
 	@Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+		super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         this.txtStatus = (TextView) findViewById(R.id.txtStatus);
@@ -77,11 +69,17 @@ public class BandStreamingAppActivity extends Activity {
         this.btnStart = (Button) findViewById(R.id.btnStart);
 		this.btnService = (Button) findViewById(R.id.btnService);
 
+		bandManager = new BandManager(this);
+//		bandManager.Callback = this;
+
 		this.btnStart.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				txtStatus.setText("");
-				new askForConsentAppTask().execute();
+				//new askForConsentAppTask(this).execute();
+				bandManager.SaveInDB = false;
+				bandManager.connect(mainActivity);
+				//bandManager.askForPermissions(mainActivity, mainActivity);
 			}
 		});
 
@@ -103,7 +101,7 @@ public class BandStreamingAppActivity extends Activity {
 			@Override
 			public void onClick(View v) {
 				try {
-					readLastRate();
+					printReadings();
 				} catch (Exception ex) {
 					showException(ex.getMessage());
 				}
@@ -115,23 +113,24 @@ public class BandStreamingAppActivity extends Activity {
 			@Override
 			public void onClick(View v) {
 				try{
-					if (serviceIntent == null) {
-						serviceIntent = new Intent(getApplicationContext(), RecordBandDataIntentService.class);
-					}
+					Intent s = new Intent(getApplicationContext(), RecordBandDataIntentService.class);
+//					if (serviceIntent == null) {
+//						serviceIntent = new Intent(getApplicationContext(), RecordBandDataIntentService.class);
+//					}
 					if (!isServiceStarted) {
-						startService(serviceIntent);
+						startService(s);
 //						myService.startService(serviceIntent);
 						isServiceStarted = true;
 					}
 					else {
-						stopService(serviceIntent);
+						stopService(s);
 //						myService.stopService(serviceIntent);
 						isServiceStarted = false;
 					}
 					appendToUI("Service started: " + isServiceStarted, (TextView) findViewById(R.id.txtServiceState));
 				}
 				catch (Exception ex){
-					Log.e("MMM", ex.getStackTrace().toString());
+					Log.e("DiabeatIT", ex.getStackTrace().toString());
 				}
 			}
 		});
@@ -166,7 +165,7 @@ public class BandStreamingAppActivity extends Activity {
 	private void createDb() {
 		DiabeatITDbHelper dbHelper = new DiabeatITDbHelper(this);
 		this.db = dbHelper.getWritableDatabase();
-		Log.d("MMM", "Db created");
+		Log.d("DiabeatIT", "Db created");
 	}
 
 	private void saveCurrentHeartRate() {
@@ -177,11 +176,13 @@ public class BandStreamingAppActivity extends Activity {
 		values.put("Value", currentHeartRate);
 		values.put("Date", dateStr);
 		db.insert("HeartRateEntry", "null", values);
-		Log.d("MMM", "Written " + currentHeartRate + " at " + dateStr);
-		//appendToUI("Written " + currentHeartRate + " at " + dateStr, txtDataStatus);
+		Log.d("DiabeatIT", "Written " + currentHeartRate + " at " + dateStr);
 	}
 
-	private void readLastRate() {
+	/**
+	 * Shows all the readings stored in db
+	 */
+	private void printReadings() {
 		String[] projection = {"Id, Value, Date"};
 		Cursor c = db.query(
 				"HeartRateEntry",  // The table to query
@@ -198,7 +199,7 @@ public class BandStreamingAppActivity extends Activity {
 			int rate = c.getInt(c.getColumnIndex("Value"));
 			String date = c.getString(c.getColumnIndex("Date"));
 			//appendToUI("Read " + rate + " at " + date, txtDataStatus);
-			Log.d("MMM", "Read " + rate + " at " + date);
+			Log.d("DiabeatIT", "Read " + rate + " at " + date);
 		} while(c.moveToNext());
 	}
 
@@ -219,105 +220,17 @@ public class BandStreamingAppActivity extends Activity {
             }
         });
 	}
-	
-//    private BandAccelerometerEventListener mAccelerometerEventListener = new BandAccelerometerEventListener() {
-//        @Override
-//        public void onBandAccelerometerChanged(final BandAccelerometerEvent event) {
-//            if (event != null) {
-//            	appendToUI(String.format(" X = %.3f \n Y = %.3f\n Z = %.3f", event.getAccelerationX(),
-//            			event.getAccelerationY(), event.getAccelerationZ()), txtStatus);
-//            }
-//        }
-//    };
 
-	/**
-	 * Listen to the CONSENT for reading heart rate
-	 */
-	private HeartRateConsentListener heartRateConsentListener = new HeartRateConsentListener() {
-		@Override
-		public void userAccepted(boolean b) {
-
+	@Override
+	public void PostExecution() {
+		// Invoked afer connection. Subscribe to events
+		if (step == 0){
+			this.bandManager.askForPermissions(this, this);
+			step++;
 		}
-	};
-
-	/**
-	 * Listener for heart rate
-	 */
-	private BandHeartRateEventListener mHeartRateEventListener = new BandHeartRateEventListener() {
-		@Override
-		public void onBandHeartRateChanged(BandHeartRateEvent bandHeartRateEvent) {
-			try {
-				if (bandHeartRateEvent != null) {
-					appendToUI(String.format("Heart rate: %d",
-							bandHeartRateEvent.getHeartRate()), txtHeartRate);
-					currentHeartRate = bandHeartRateEvent.getHeartRate();
-
-				}
-			}
-			catch (Exception ex) {
-				showException(ex.getMessage());
-			}
-		}
-	};
-    
-	private boolean getConnectedBandClient() throws InterruptedException, BandException {
-		if (client == null) {
-			BandInfo[] devices = BandClientManager.getInstance().getPairedBands();
-			if (devices.length == 0) {
-				appendToUI("Band isn't paired with your phone.\n");
-				return false;
-			}
-			client = BandClientManager.getInstance().create(getBaseContext(), devices[0]);
-		} else if (ConnectionState.CONNECTED == client.getConnectionState()) {
-			return true;
-		}
-		
-		appendToUI("Band is connecting...\n");
-		return ConnectionState.CONNECTED == client.connect().await();
-	}
-
-	/**
-	 * Task that asks for the consent to read heart rate
-	 */
-	private class askForConsentAppTask extends AsyncTask<Void, Void, Void> {
-		@Override
-		protected Void doInBackground(Void... params) {
-			try {
-				if (getConnectedBandClient()) {
-					appendToUI("Band is connected.\n");
-					//client.getSensorManager().registerAccelerometerEventListener(mAccelerometerEventListener, SampleRate.MS128);
-
-					if(client.getSensorManager().getCurrentHeartRateConsent() !=
-							UserConsent.GRANTED) {
-						// user has not consented, request it
-						// the calling class is both an Activity and implements
-						// HeartRateConsentListener
-						client.getSensorManager().requestHeartRateConsent(mainActivity, heartRateConsentListener);
-					}
-					client.getSensorManager().registerHeartRateEventListener(mHeartRateEventListener);
-				} else {
-					appendToUI("Band isn't connected. Please make sure bluetooth is on and the band is in range.\n");
-				}
-			} catch (BandException e) {
-				String exceptionMessage="";
-				switch (e.getErrorType()) {
-					case UNSUPPORTED_SDK_VERSION_ERROR:
-						exceptionMessage = "Microsoft Health BandService doesn't support your SDK Version. Please update to latest SDK.";
-						break;
-					case SERVICE_ERROR:
-						exceptionMessage = "Microsoft Health BandService is not available. Please make sure Microsoft Health is installed and that you have the correct permissions.";
-						break;
-					default:
-						exceptionMessage = "Unknown error occured: " + e.getMessage();
-						break;
-				}
-				showException(exceptionMessage);
-
-
-			} catch (Exception e) {
-				appendToUI(e.getMessage());
-			}
-			return null;
+		else if (step == 1){
+			this.bandManager.subscribeToEvents();
+			step++;
 		}
 	}
 }
