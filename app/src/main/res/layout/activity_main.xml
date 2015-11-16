@@ -46,14 +46,6 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Save current data"
-        android:id="@+id/btnSaveData"
-        android:onClick="onSaveCurrentData"
-        android:nestedScrollingEnabled="true" />
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
         android:text="Read past data"
         android:id="@+id/btnReadData" />
 

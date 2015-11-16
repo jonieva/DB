@@ -70,29 +70,13 @@ public class BandStreamingAppActivity extends Activity implements IOnTaskComplet
 		this.btnService = (Button) findViewById(R.id.btnService);
 
 		bandManager = new BandManager(this);
-//		bandManager.Callback = this;
 
 		this.btnStart.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				txtStatus.setText("");
-				//new askForConsentAppTask(this).execute();
 				bandManager.SaveInDB = false;
 				bandManager.connect(mainActivity);
-				//bandManager.askForPermissions(mainActivity, mainActivity);
-			}
-		});
-
-		this.btnSaveData = (Button) findViewById(R.id.btnSaveData);
-		this.btnSaveData.setOnClickListener(new OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				try {
-					saveCurrentHeartRate();
-				}
-				catch (Exception ex) {
-					showException(ex.getMessage());
-				}
 			}
 		});
 
@@ -113,18 +97,13 @@ public class BandStreamingAppActivity extends Activity implements IOnTaskComplet
 			@Override
 			public void onClick(View v) {
 				try{
-					Intent s = new Intent(getApplicationContext(), RecordBandDataIntentService.class);
-//					if (serviceIntent == null) {
-//						serviceIntent = new Intent(getApplicationContext(), RecordBandDataIntentService.class);
-//					}
+					Intent serviceIntent = new Intent(getApplicationContext(), RecordBandDataIntentService.class);
 					if (!isServiceStarted) {
-						startService(s);
-//						myService.startService(serviceIntent);
+						startService(serviceIntent);
 						isServiceStarted = true;
 					}
 					else {
-						stopService(s);
-//						myService.stopService(serviceIntent);
+						stopService(serviceIntent);
 						isServiceStarted = false;
 					}
 					appendToUI("Service started: " + isServiceStarted, (TextView) findViewById(R.id.txtServiceState));
@@ -134,8 +113,6 @@ public class BandStreamingAppActivity extends Activity implements IOnTaskComplet
 				}
 			}
 		});
-
-
 		this.mainActivity = this;
     }
 
@@ -152,31 +129,7 @@ public class BandStreamingAppActivity extends Activity implements IOnTaskComplet
 	}
 
 	private void pause() {
-		if (client != null) {
-			try {
-				client.getSensorManager().unregisterAccelerometerEventListeners();
-			} catch (BandIOException e) {
-				appendToUI(e.getMessage());
-			}
-		}
-	}
-
-
-	private void createDb() {
-		DiabeatITDbHelper dbHelper = new DiabeatITDbHelper(this);
-		this.db = dbHelper.getWritableDatabase();
-		Log.d("DiabeatIT", "Db created");
-	}
-
-	private void saveCurrentHeartRate() {
-		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-		String dateStr = dateFormat.format(new Date());
-
-		ContentValues values = new ContentValues();
-		values.put("Value", currentHeartRate);
-		values.put("Date", dateStr);
-		db.insert("HeartRateEntry", "null", values);
-		Log.d("DiabeatIT", "Written " + currentHeartRate + " at " + dateStr);
+		this.bandManager.disconnect();
 	}
 
 	/**
