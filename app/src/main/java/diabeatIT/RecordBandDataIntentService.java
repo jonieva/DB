@@ -1,27 +1,9 @@
 package diabeatIT;
 
 import android.app.IntentService;
-import android.content.ContentValues;
 import android.content.Intent;
-import android.content.Context;
-import android.database.sqlite.SQLiteDatabase;
-import android.os.AsyncTask;
 import android.util.Log;
 
-import com.microsoft.band.BandClient;
-import com.microsoft.band.BandClientManager;
-import com.microsoft.band.BandErrorType;
-import com.microsoft.band.BandException;
-import com.microsoft.band.BandInfo;
-import com.microsoft.band.ConnectionState;
-import com.microsoft.band.UserConsent;
-import com.microsoft.band.sensors.BandHeartRateEvent;
-import com.microsoft.band.sensors.BandHeartRateEventListener;
-import com.microsoft.band.sensors.BandSensorManager;
-
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 /**
  * An {@link IntentService} subclass for handling asynchronous task requests in
@@ -32,10 +14,12 @@ import java.util.Date;
  */
 public class RecordBandDataIntentService extends IntentService implements IOnTaskCompleted  {
     private BandManager bandManager;
+
 ////    private static final String ACTION_RECORD_HEART_RATE = "diabeatIT.action.RECORD_HEART_RATE";
 
     public RecordBandDataIntentService() {
         super("RecordBandDataIntentService");
+
     }
 
 //    @Override
@@ -87,7 +71,7 @@ public class RecordBandDataIntentService extends IntentService implements IOnTas
     @Override
     public void onDestroy() {
         try {
-            this.bandManager.disconnect();
+            this.bandManager.unsubscribeAllListeners();
         }
         catch (Exception ex)
         {
@@ -100,5 +84,21 @@ public class RecordBandDataIntentService extends IntentService implements IOnTas
     @Override
     public void PostExecution() {
         this.bandManager.subscribeToEvents();
+        this.sleepAndListen();
+    }
+
+    private void sleepAndListen() {
+        try {
+            while (true) {
+//                Log.d("DiabeatIT", "Listening for 30 seconds");
+                Thread.sleep(30000);
+//                Log.d("DiabeatIT", "Sleeping for 5 secs");
+                this.bandManager.unsubscribeAllListeners();
+                Thread.sleep(300000);
+                this.bandManager.subscribeToEvents();
+
+            }
+        }
+        catch (Exception ex){}
     }
 }

@@ -3,36 +3,51 @@ package diabeatIT;
 import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.AsyncTask;
+import android.os.Environment;
 import android.util.Log;
 
 import com.microsoft.band.BandClient;
 import com.microsoft.band.BandClientManager;
 import com.microsoft.band.BandErrorType;
 import com.microsoft.band.BandException;
-import com.microsoft.band.BandIOException;
 import com.microsoft.band.BandInfo;
 import com.microsoft.band.ConnectionState;
 import com.microsoft.band.UserConsent;
+import com.microsoft.band.sensors.BandGsrEvent;
+import com.microsoft.band.sensors.BandGsrEventListener;
 import com.microsoft.band.sensors.BandHeartRateEvent;
 import com.microsoft.band.sensors.BandHeartRateEventListener;
+import com.microsoft.band.sensors.BandRRIntervalEvent;
+import com.microsoft.band.sensors.BandRRIntervalEventListener;
+import com.microsoft.band.sensors.BandSkinTemperatureEvent;
+import com.microsoft.band.sensors.BandSkinTemperatureEventListener;
 import com.microsoft.band.sensors.HeartRateConsentListener;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * Perform all the interactions with the Band (Reading, notifications, etc.)
  */
-public class BandManager {
+public class BandManager{
+    public enum MeasurementType {
+        HeartRate,
+        GSR,
+        SkinTemperature,
+        RR,
+        GlucoseCGM,
+        GlucoseMeter
+    }
+
     private BandClient bandClient;
-    private SQLiteDatabase db;
+    private DiabeatITDbHelper dbHelper;
     private Context currentContext;
+    private FileWriter resultsFileWriter;
+    private StringBuilder sb = new StringBuilder();
 
     public Boolean SaveInDB = true;
 //    public IOnTaskCompleted Callback;
@@ -46,6 +61,27 @@ public class BandManager {
         task.execute();
     }
 
+//    public void openResultsFile(){
+//        try {
+//            File dir = new File(this.currentContext.getFilesDir().getPath());
+//            dir = new File(Environment.getExternalStorageDirectory().getPath() + "DiabeatIT");
+//            dir.mkdir();
+//
+//            Log.d("DiabeatIT", "Created dir: " + this.currentContext.getFilesDir());
+//            File resultsFile = new File(this.currentContext.getFilesDir(), "diabeatIT_results.csv");
+//
+//            if (!resultsFile.exists())
+//                resultsFile.createNewFile();
+//            resultsFileWriter = new FileWriter(resultsFile, true);
+//            resultsFileWriter.write("hola");
+//            resultsFileWriter.close();
+//        }
+//        catch(Exception ex)
+//        {
+//            Log.e("DiabeatIT", "Error creating the results file: " + ex.getMessage());
+//        }
+//    }
+
     public void askForPermissions(Activity activity, IOnTaskCompleted callback) {
         AskForConsentAppTask task = new AskForConsentAppTask(activity, callback);
         task.execute();
@@ -53,19 +89,23 @@ public class BandManager {
 
     public void subscribeToEvents() { //throws BandException {
         try {
-            bandClient.getSensorManager().registerHeartRateEventListener(mHeartRateEventListener);
+            bandClient.getSensorManager().registerHeartRateEventListener(heartRateEventListener);
+            bandClient.getSensorManager().registerGsrEventListener(gsrEventListener);
+            bandClient.getSensorManager().registerSkinTemperatureEventListener(skinTemperatureEventListener);
+            bandClient.getSensorManager().registerRRIntervalEventListener(rrEventListener);
         }
         catch (Exception ex) {
             Log.e("DiabeatIT", "Error when subscribing to events: " + ex.getMessage());
         }
     }
 
-    private SQLiteDatabase getDb() {
-        if (db == null) {
-            DiabeatITDbHelper dbHelper = new DiabeatITDbHelper(this.currentContext);
-            db = dbHelper.getWritableDatabase();
+    public DiabeatITDbHelper getDb() {
+        if (dbHelper == null) {
+            dbHelper = new DiabeatITDbHelper(this.currentContext);
+            //db = dbHelper.getWritableDatabase();
         }
-        return db;
+//        return db;
+        return dbHelper;
     }
 
     /***********************
@@ -80,12 +120,33 @@ public class BandManager {
 
         }
     };
-    private BandHeartRateEventListener mHeartRateEventListener = new BandHeartRateEventListener() {
+    private BandHeartRateEventListener heartRateEventListener = new BandHeartRateEventListener() {
         @Override
         public void onBandHeartRateChanged(BandHeartRateEvent bandHeartRateEvent) {
             if (bandHeartRateEvent != null) {
-                saveHeartRate(bandHeartRateEvent.getHeartRate());
+                saveSensorData(MeasurementType.HeartRate, bandHeartRateEvent.getHeartRate());
             }
+        }
+    };
+
+    private BandGsrEventListener gsrEventListener = new BandGsrEventListener() {
+        @Override
+        public void onBandGsrChanged(BandGsrEvent bandGsrEvent) {
+            saveSensorData(MeasurementType.GSR, bandGsrEvent.getResistance());
+        }
+    };
+
+    private BandSkinTemperatureEventListener skinTemperatureEventListener = new  BandSkinTemperatureEventListener() {
+        @Override
+        public void onBandSkinTemperatureChanged(BandSkinTemperatureEvent bandSkinTemperatureEvent) {
+            saveSensorData(MeasurementType.SkinTemperature, bandSkinTemperatureEvent.getTemperature());
+        }
+    };
+
+    private BandRRIntervalEventListener rrEventListener = new BandRRIntervalEventListener() {
+        @Override
+        public void onBandRRIntervalChanged(BandRRIntervalEvent bandRRIntervalEvent) {
+            saveSensorData(MeasurementType.RR, bandRRIntervalEvent.getInterval());
         }
     };
 
@@ -93,25 +154,44 @@ public class BandManager {
      * Handle action Foo in the provided background thread with the provided
      * parameters.
      */
-    private void saveHeartRate(int heartRate) {
-        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+    private void saveSensorData(MeasurementType type, double value) {
+        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String dateStr = dateFormat.format(new Date());
 
-        ContentValues values = new ContentValues();
-        values.put("Value", heartRate);
-        values.put("Date", dateStr);
         if (this.SaveInDB) {
-            this.getDb().insert("HeartRateEntry", "null", values);
+            ContentValues values = new ContentValues();
+            values.put("Type", type.ordinal());
+            values.put("Value", value);
+            values.put("Date", dateStr);
+            this.getDb().insertEntry(values);
         }
-        Log.d("DiabeatIT", "Written " + heartRate + " at " + dateStr);
+        String data = dateStr + "," + type + "," + value + "\n";
+        Log.d("DiabeatIT_Data", data);
+        // Write in "file"
+        sb.append(data);
+
     }
 
-    public void disconnect() {
+
+
+    public void unsubscribeAllListeners() {
         try {
             this.bandClient.getSensorManager().unregisterAllListeners();
+            this.closeResultsFile();
         }
         catch (Exception ex) {
             Log.e("DiabeatIT", "Error when unregistering listeners: " + ex.getMessage());
+        }
+    }
+
+    public void closeResultsFile() {
+        try
+        {
+            resultsFileWriter.close();
+        }
+        catch (Exception ex)
+        {
+            Log.e("DiabeatIT", "Error when closing the results file: " + ex.getMessage());
         }
     }
 

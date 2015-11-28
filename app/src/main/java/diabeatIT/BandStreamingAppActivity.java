@@ -18,11 +18,9 @@
 package diabeatIT;
 
 import com.microsoft.band.BandClient;
-import com.microsoft.band.BandIOException;
 
 import diabeatIT.streaming.R;
 
-import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -34,14 +32,11 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
 public class BandStreamingAppActivity extends Activity implements IOnTaskCompleted {
 
 	private BandClient client = null;
 	private Button btnStart;
+	private Button btnStop;
 	private TextView txtStatus;
 	private TextView txtHeartRate;
 	private BandStreamingAppActivity mainActivity = this;
@@ -67,9 +62,11 @@ public class BandStreamingAppActivity extends Activity implements IOnTaskComplet
 		this.txtHeartRate = (TextView) findViewById(R.id.txtHeartRate);
 		this.txtDataStatus = (TextView) findViewById(R.id.txtDataStatus);
         this.btnStart = (Button) findViewById(R.id.btnStart);
+		this.btnStop = (Button) findViewById(R.id.btnStop);
 		this.btnService = (Button) findViewById(R.id.btnService);
 
 		bandManager = new BandManager(this);
+
 
 		this.btnStart.setOnClickListener(new OnClickListener() {
 			@Override
@@ -77,6 +74,13 @@ public class BandStreamingAppActivity extends Activity implements IOnTaskComplet
 				txtStatus.setText("");
 				bandManager.SaveInDB = false;
 				bandManager.connect(mainActivity);
+			}
+		});
+
+		this.btnStop.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				bandManager.unsubscribeAllListeners();
 			}
 		});
 
@@ -129,16 +133,16 @@ public class BandStreamingAppActivity extends Activity implements IOnTaskComplet
 	}
 
 	private void pause() {
-		this.bandManager.disconnect();
+		this.bandManager.unsubscribeAllListeners();
 	}
 
 	/**
 	 * Shows all the readings stored in db
 	 */
 	private void printReadings() {
-		String[] projection = {"Id, Value, Date"};
+		String[] projection = {"Id, Type, Value, Date"};
 		Cursor c = db.query(
-				"HeartRateEntry",  // The table to query
+				"SensorEntry",  // The table to query
 				projection,                               // The columns to return
 				null,                                // The columns for the WHERE clause
 				null,                            // The values for the WHERE clause
@@ -181,7 +185,7 @@ public class BandStreamingAppActivity extends Activity implements IOnTaskComplet
 			this.bandManager.askForPermissions(this, this);
 			step++;
 		}
-		else if (step == 1){
+		else {
 			this.bandManager.subscribeToEvents();
 			step++;
 		}
