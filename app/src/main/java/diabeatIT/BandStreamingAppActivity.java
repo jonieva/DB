@@ -34,7 +34,6 @@ import android.widget.TextView;
 
 public class BandStreamingAppActivity extends Activity implements IOnTaskCompleted {
 
-	private BandClient client = null;
 	private Button btnStart;
 	private Button btnStop;
 	private TextView txtStatus;
