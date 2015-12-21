@@ -32,7 +32,7 @@ public class RecordBandDataIntentService extends IntentService implements IOnTas
     public int onStartCommand(Intent intent, int flags, int startId) {
         try {
             bandManager = new BandManager(this);
-            bandManager.SaveInDB = false;
+            bandManager.SaveInDB = true;
             bandManager.connect(this);
         }
         catch(Exception ex){
@@ -84,21 +84,28 @@ public class RecordBandDataIntentService extends IntentService implements IOnTas
     @Override
     public void PostExecution() {
         this.bandManager.subscribeToEvents();
-        this.sleepAndListen();
+        //this.sleepAndListen();
     }
 
     private void sleepAndListen() {
         try {
             while (true) {
-//                Log.d("DiabeatIT", "Listening for 30 seconds");
-                Thread.sleep(30000);
-//                Log.d("DiabeatIT", "Sleeping for 5 secs");
+                Log.d("DiabeatIT", "Listening for 10 seconds");
+//                Thread.sleep(30000);
+                Thread.sleep(10000);
                 this.bandManager.unsubscribeAllListeners();
-                Thread.sleep(300000);
+                Log.d("DiabeatIT", "Sleeping for 5 secs");
+//                Thread.sleep(300000);
+                Thread.sleep(5000);
+                // Resume listening
+                Log.d("DiabeatIT", "Listening for 10 seconds");
                 this.bandManager.subscribeToEvents();
 
             }
         }
-        catch (Exception ex){}
+        catch (Exception ex)
+        {
+            Log.e("DiabeatIT", "Error in service execution: " + ex.getMessage());
+        }
     }
 }

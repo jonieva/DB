@@ -17,8 +17,6 @@
 //IN THE SOFTWARE.
 package diabeatIT;
 
-import com.microsoft.band.BandClient;
-
 import diabeatIT.streaming.R;
 
 import android.content.Intent;
@@ -41,7 +39,8 @@ public class BandStreamingAppActivity extends Activity implements IOnTaskComplet
 	private BandStreamingAppActivity mainActivity = this;
 
 	private Button btnSaveData;
-	private Button btnReadData;
+	private Button backupDatabaseButton;
+	private Button removeDatabaseButton;
 	private TextView txtDataStatus;
 	private int currentHeartRate = 0;
 
@@ -83,12 +82,27 @@ public class BandStreamingAppActivity extends Activity implements IOnTaskComplet
 			}
 		});
 
-		this.btnReadData = (Button) findViewById(R.id.btnReadData);
-		this.btnReadData.setOnClickListener(new OnClickListener() {
+		this.backupDatabaseButton = (Button) findViewById(R.id.backupDatabaseButton);
+		this.backupDatabaseButton.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				try {
-					printReadings();
+					bandManager.backupDatabase();
+//					printReadings();
+					appendToUI("Backup finished!");
+				} catch (Exception ex) {
+					showException(ex.getMessage());
+				}
+			}
+		});
+
+		this.removeDatabaseButton = (Button) findViewById(R.id.removeDatabaseButton);
+		this.removeDatabaseButton.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				try {
+					bandManager.removeDatabases();
+					appendToUI("Database removed!");
 				} catch (Exception ex) {
 					showException(ex.getMessage());
 				}

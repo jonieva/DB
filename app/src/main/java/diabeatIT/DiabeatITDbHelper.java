@@ -4,12 +4,19 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.os.Environment;
 import android.provider.BaseColumns;
 import android.util.Log;
 
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * Created by Jorge on 05/05/15.
@@ -27,27 +34,40 @@ import java.nio.channels.FileChannel;
 //}
 
 public class DiabeatITDbHelper extends SQLiteOpenHelper {
-    public static final int DATABASE_VERSION = 2;
-    public static final String DATABASE_NAME = "DiabeatIT2.db";
+    public static final int DATABASE_VERSION = 1;
+    public static final String DATABASE_NAME = "DiabeatIT.db";
 
     private static final String TABLE_NAME = "SensorEntry";
     private static final String[] columnNames = {"Id", "Date", "Type", "Value"};
     private static final String[] columnTypes = {"INTEGER", "TEXT", "INTEGER", "REAL"};
 
-    private SQLiteDatabase db;
+    //private SQLiteDatabase db;
 
     public static final String SQL_CREATE_DB =
         "CREATE TABLE SensorEntry " +
                 "(Id INTEGER PRIMARY KEY, " +
-                "Date TEXT" +
-                "Type INTEGER" +
+                "Date TEXT," +
+                "Type INTEGER," +
                 "Value REAL)";
 
     public static final String SQL_DELETE_DB =
             "DROP TABLE SensorEntry";
 
 
+    private SQLiteDatabase getDb(){
+        return this.getDb(false);
+    }
 
+    private SQLiteDatabase getDb(boolean readOnly){
+        SQLiteDatabase db;
+        if (readOnly){
+            db = this.getReadableDatabase();
+        }
+        else{
+            db = this.getWritableDatabase();
+        }
+        return db;
+    }
 
     public DiabeatITDbHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -56,7 +76,7 @@ public class DiabeatITDbHelper extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL(SQL_CREATE_DB);
-        this.db = db;
+        //this.db = db;
     }
 
     @Override
@@ -66,21 +86,48 @@ public class DiabeatITDbHelper extends SQLiteOpenHelper {
     }
 
     public void insertEntry(ContentValues values){
+        SQLiteDatabase db = getDb();
         db.insert(this.TABLE_NAME, "null", values);
     }
 
-    public void copyDatabase(String path){
+    /**
+     * Make a backup of the database in the external storage (/storage/emulated/legacy/diabeatit)
+     * @throws IOException
+     */
+    public void backupDb() throws IOException{
         try {
-            FileInputStream inStream = new FileInputStream(db.getPath());
-            FileOutputStream outStream = new FileOutputStream(path);
-            FileChannel inChannel = inStream.getChannel();
-            FileChannel outChannel = outStream.getChannel();
-            inChannel.transferTo(0, inChannel.size(), outChannel);
-            inStream.close();
-            outStream.close();
+            SQLiteDatabase db = getDb();
+
+            File sd = Environment.getExternalStorageDirectory();
+            String currentDBPath = db.getPath();
+
+            DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+            String dateStr = dateFormat.format(new Date());
+            // The file is named with the current date
+            String backupDBPath = String.format("diabeatit/db%s.db", dateStr);
+            File currentDB = new File(currentDBPath);
+            File backupDB = new File(sd, backupDBPath);
+
+            FileChannel src = new FileInputStream(currentDB).getChannel();
+            FileChannel dst = new FileOutputStream(backupDB).getChannel();
+            dst.transferFrom(src, 0, src.size());
+            src.close();
+            dst.close();
         }
         catch (Exception ex) {
-            Log.e("DiabeatIT", "Error copying database: " + ex.getMessage());
+            Log.e("DiabeatIT", "Error when deleting database: " + ex.getMessage());
+            throw ex;
+        }
+    }
+
+    /**
+     * Remove all the files that are in the database folder (hardcoded)
+     */
+    public void removeAllDatabases() {
+        File dbDir = new File("/data/data/com.microsoft.band.sdk.sampleapp.streaming/databases/");
+        File[] files = dbDir.listFiles();
+        for (int i = 0; i<files.length; i++){
+            files[i].delete();
         }
     }
 

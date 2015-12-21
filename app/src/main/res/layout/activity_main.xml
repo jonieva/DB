@@ -52,8 +52,15 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Read past data"
-        android:id="@+id/btnReadData" />
+        android:text="Backup database"
+        android:id="@+id/backupDatabaseButton" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Remove database"
+        android:id="@+id/removeDatabaseButton"
+        android:layout_gravity="right" />
 
     <Button
         android:layout_width="wrap_content"

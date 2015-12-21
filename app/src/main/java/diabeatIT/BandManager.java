@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
 import android.os.AsyncTask;
-import android.os.Environment;
 import android.util.Log;
 
 import com.microsoft.band.BandClient;
@@ -24,8 +23,8 @@ import com.microsoft.band.sensors.BandSkinTemperatureEvent;
 import com.microsoft.band.sensors.BandSkinTemperatureEventListener;
 import com.microsoft.band.sensors.HeartRateConsentListener;
 
-import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -35,12 +34,14 @@ import java.util.Date;
  */
 public class BandManager{
     public enum MeasurementType {
-        HeartRate,
-        GSR,
-        SkinTemperature,
-        RR,
-        GlucoseCGM,
-        GlucoseMeter
+        GlucoseCGM,         // 0: Continuous glucose monitor
+        GlucoseMeter,       // 1: Glucometer
+        HeartRate,          // 2: Heart Rate
+        GSR,                // 3: Galvanic skin response
+        SkinTemperature,    // 4: Skin temperature
+        RR,                 // 5: interval in seconds between the last two continuous heart beats.
+                            //    (The data returned should be used only in resting mode)
+
     }
 
     private BandClient bandClient;
@@ -60,6 +61,8 @@ public class BandManager{
         ConnectToBandTask task = new ConnectToBandTask(callback);
         task.execute();
     }
+
+
 
 //    public void openResultsFile(){
 //        try {
@@ -108,6 +111,21 @@ public class BandManager{
         return dbHelper;
     }
 
+    public void testDB() throws IOException{
+//        this.getDb().removeAllDatabases();
+        ContentValues values = new ContentValues();
+        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String dateStr = dateFormat.format(new Date());
+        values.put("Type", MeasurementType.HeartRate.ordinal());
+        values.put("Value", 69);
+        values.put("Date", dateStr);
+        this.getDb().insertEntry(values);
+        this.getDb().backupDb();
+    }
+
+    public void backupDatabase() throws IOException {
+        this.getDb().backupDb();
+    }
     /***********************
      * LISTENERS
      ***********************/
@@ -165,10 +183,10 @@ public class BandManager{
             values.put("Date", dateStr);
             this.getDb().insertEntry(values);
         }
-        String data = dateStr + "," + type + "," + value + "\n";
+        String data = "Saved " + dateStr + "," + type + "," + value + "\n";
         Log.d("DiabeatIT_Data", data);
         // Write in "file"
-        sb.append(data);
+        //sb.append(data);
 
     }
 
@@ -193,6 +211,10 @@ public class BandManager{
         {
             Log.e("DiabeatIT", "Error when closing the results file: " + ex.getMessage());
         }
+    }
+
+    public void removeDatabases(){
+        this.getDb().removeAllDatabases();
     }
 
 
