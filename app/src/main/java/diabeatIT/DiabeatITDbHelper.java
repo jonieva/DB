@@ -38,15 +38,15 @@ public class DiabeatITDbHelper extends SQLiteOpenHelper {
     public static final String DATABASE_NAME = "DiabeatIT.db";
 
     private static final String TABLE_NAME = "SensorEntry";
-    private static final String[] columnNames = {"Id", "Date", "Type", "Value"};
-    private static final String[] columnTypes = {"INTEGER", "TEXT", "INTEGER", "REAL"};
+    private static final String[] columnNames = {"Date", "Type", "Value"};
+    private static final String[] columnTypes = {"TEXT", "INTEGER", "REAL"};
 
     //private SQLiteDatabase db;
 
     public static final String SQL_CREATE_DB =
         "CREATE TABLE SensorEntry " +
-                "(Id INTEGER PRIMARY KEY, " +
-                "Date TEXT," +
+//                "(Id INTEGER PRIMARY KEY, " +
+                "(Date TEXT," +
                 "Type INTEGER," +
                 "Value REAL)";
 
