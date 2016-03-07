@@ -84,21 +84,25 @@ public class RecordBandDataIntentService extends IntentService implements IOnTas
     @Override
     public void PostExecution() {
         this.bandManager.subscribeToEvents();
-        //this.sleepAndListen();
+        this.sleepAndListen(10, 50);
     }
 
-    private void sleepAndListen() {
+    /**
+     * Keeps the service listening for x seconds and then sleeping for y seconds
+     * @param secondsListening
+     * @param secondsSleeping
+     */
+    private void sleepAndListen(int secondsListening, int secondsSleeping) {
         try {
             while (true) {
-                Log.d("DiabeatIT", "Listening for 10 seconds");
+//                Log.d("DiabeatIT", "Listening for 10 seconds");
 //                Thread.sleep(30000);
-                Thread.sleep(10000);
+                Thread.sleep(secondsListening * 1000);
                 this.bandManager.unsubscribeAllListeners();
-                Log.d("DiabeatIT", "Sleeping for 5 secs");
+//                Log.d("DiabeatIT", "Sleeping for 5 secs");
 //                Thread.sleep(300000);
-                Thread.sleep(5000);
+                Thread.sleep(secondsSleeping * 1000);
                 // Resume listening
-                Log.d("DiabeatIT", "Listening for 10 seconds");
                 this.bandManager.subscribeToEvents();
 
             }

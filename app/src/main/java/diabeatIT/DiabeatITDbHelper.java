@@ -99,14 +99,18 @@ public class DiabeatITDbHelper extends SQLiteOpenHelper {
             SQLiteDatabase db = getDb();
 
             File sd = Environment.getExternalStorageDirectory();
+            String diabeatItFolderPath = sd.getAbsolutePath() + "/diabeatit";
+            File diabeatItFolder = new File(diabeatItFolderPath);
+            diabeatItFolder.mkdirs();
+
             String currentDBPath = db.getPath();
 
-            DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+            DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd__HH-mm-ss");
             String dateStr = dateFormat.format(new Date());
             // The file is named with the current date
-            String backupDBPath = String.format("diabeatit/db%s.db", dateStr);
+            String backupDBFileName = String.format("%s.db", dateStr);
             File currentDB = new File(currentDBPath);
-            File backupDB = new File(sd, backupDBPath);
+            File backupDB = new File(diabeatItFolder, backupDBFileName);
 
             FileChannel src = new FileInputStream(currentDB).getChannel();
             FileChannel dst = new FileOutputStream(backupDB).getChannel();

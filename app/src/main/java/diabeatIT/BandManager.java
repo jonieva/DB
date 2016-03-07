@@ -10,9 +10,12 @@ import com.microsoft.band.BandClient;
 import com.microsoft.band.BandClientManager;
 import com.microsoft.band.BandErrorType;
 import com.microsoft.band.BandException;
+import com.microsoft.band.BandIOException;
 import com.microsoft.band.BandInfo;
 import com.microsoft.band.ConnectionState;
 import com.microsoft.band.UserConsent;
+import com.microsoft.band.sensors.BandAccelerometerEvent;
+import com.microsoft.band.sensors.BandAccelerometerEventListener;
 import com.microsoft.band.sensors.BandGsrEvent;
 import com.microsoft.band.sensors.BandGsrEventListener;
 import com.microsoft.band.sensors.BandHeartRateEvent;
@@ -22,6 +25,7 @@ import com.microsoft.band.sensors.BandRRIntervalEventListener;
 import com.microsoft.band.sensors.BandSkinTemperatureEvent;
 import com.microsoft.band.sensors.BandSkinTemperatureEventListener;
 import com.microsoft.band.sensors.HeartRateConsentListener;
+import com.microsoft.band.sensors.SampleRate;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -49,6 +53,8 @@ public class BandManager{
     private Context currentContext;
     private FileWriter resultsFileWriter;
     private StringBuilder sb = new StringBuilder();
+
+    public double sampleCoord = 0;     // Accelerometer dummy value just for testing purposes
 
     public Boolean SaveInDB = true;
 //    public IOnTaskCompleted Callback;
@@ -102,6 +108,10 @@ public class BandManager{
         }
     }
 
+    public void subscribeToAccelerometer() throws BandIOException{
+        bandClient.getSensorManager().registerAccelerometerEventListener(accelerometerEventListener, SampleRate.MS128);
+    }
+
     public DiabeatITDbHelper getDb() {
         if (dbHelper == null) {
             dbHelper = new DiabeatITDbHelper(this.currentContext);
@@ -129,6 +139,13 @@ public class BandManager{
     /***********************
      * LISTENERS
      ***********************/
+    private BandAccelerometerEventListener accelerometerEventListener = new BandAccelerometerEventListener() {
+        @Override
+        public void onBandAccelerometerChanged(BandAccelerometerEvent bandAccelerometerEvent) {
+            sampleCoord = bandAccelerometerEvent.getAccelerationX();
+        }
+    };
+
     /**
      * Listen to the CONSENT for reading heart rate
      */

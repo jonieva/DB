@@ -69,9 +69,17 @@ public class BandStreamingAppActivity extends Activity implements IOnTaskComplet
 		this.btnStart.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				txtStatus.setText("");
-				bandManager.SaveInDB = false;
-				bandManager.connect(mainActivity);
+				try {
+					txtStatus.setText("");
+					bandManager.SaveInDB = false;
+					bandManager.connect(mainActivity);
+					bandManager.subscribeToAccelerometer();
+					txtStatus.setText("Accelerometer: " + bandManager.sampleCoord);
+				}
+				catch (Exception ex){
+					txtStatus.setText("Error in the connection: " + ex.getMessage());
+				}
+
 			}
 		});
 
